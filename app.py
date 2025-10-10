@@ -2,18 +2,18 @@ import pandas as pd
 from dash import Dash, html, dcc, Input, Output
 import plotly.express as px
 
-# --- Carrega o dataset ---
+# Carrega o dataset 
 df = pd.read_csv('data/imdb.csv')
 
-# --- Limpeza leve (ajuste os nomes conforme seu dataset real) ---
+# Limpeza leve 
 df = df.dropna(subset=['Genre', 'IMDb Rating', 'Year'])
 df['Year'] = df['Year'].astype(int)
 
-# --- Inicializa o app ---
+# Inicializa o app 
 app = Dash(__name__, external_stylesheets=['https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css'])
 app.title = "IMDb Storytelling Dashboard"
 
-# --- Layout ---
+# Layout 
 app.layout = html.Div([
     html.Div([
         html.H1("🎬 IMDb Storytelling Dashboard", className="text-center mt-3 mb-4"),
@@ -54,7 +54,7 @@ app.layout = html.Div([
     ], className="row container mb-5")
 ])
 
-# --- Callbacks (interatividade) ---
+# Callbacks (interatividade) 
 @app.callback(
     [Output('rating-distribution', 'figure'),
      Output('meta-over-time', 'figure'),
@@ -69,7 +69,7 @@ def update_charts(selected_genre, selected_years):
         (df['Year'].between(start, end))
     ]
 
-    # 1️⃣ Distribuição das notas
+    # Distribuição das notas
     fig1 = px.histogram(
         filtered_df,
         x='IMDb Rating',
@@ -78,7 +78,7 @@ def update_charts(selected_genre, selected_years):
         color_discrete_sequence=['#F4C430']
     )
 
-    # 2️⃣ Média de MetaScore por ano (já que 'votes' não existe)
+    # Média de MetaScore por ano
     yearly = filtered_df.groupby('Year')['MetaScore'].mean().reset_index()
     fig2 = px.line(
         yearly,
@@ -89,7 +89,7 @@ def update_charts(selected_genre, selected_years):
         color_discrete_sequence=['#1F77B4']
     )
 
-    # 3️⃣ Top 10 filmes mais bem avaliados
+    # Top 10 filmes mais bem avaliados
     top = filtered_df.nlargest(10, 'IMDb Rating')
     fig3 = px.bar(
         top,
@@ -102,6 +102,7 @@ def update_charts(selected_genre, selected_years):
     fig3.update_layout(xaxis={'categoryorder': 'total ascending'})
 
     return fig1, fig2, fig3
+
 
 # --- Executa o servidor ---
 if __name__ == '__main__':
