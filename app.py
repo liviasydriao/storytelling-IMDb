@@ -7,6 +7,10 @@ df = pd.read_csv('data/imdb.csv')
 df = df.dropna(subset=['Genre', 'IMDb Rating', 'Year'])
 df['Year'] = df['Year'].astype(int)
 
+# --- Define o ano mínimo de dados válidos (1957) ---
+MIN_YEAR = 1957
+df = df[df['Year'] >= MIN_YEAR]
+
 # --- Inicializa o app ---
 app = Dash(__name__, external_stylesheets=['https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css'])
 app.title = "IMDb Storytelling Dashboard"
