@@ -2,22 +2,23 @@ import pandas as pd
 from dash import Dash, html, dcc, Input, Output
 import plotly.express as px
 
-# Carrega o dataset 
+# --- Carrega o dataset ---
 df = pd.read_csv('data/imdb.csv')
-
-# Limpeza leve 
 df = df.dropna(subset=['Genre', 'IMDb Rating', 'Year'])
 df['Year'] = df['Year'].astype(int)
 
-# Inicializa o app 
+# --- Inicializa o app ---
 app = Dash(__name__, external_stylesheets=['https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css'])
 app.title = "IMDb Storytelling Dashboard"
 
-# Layout 
+# --- Layout ---
 app.layout = html.Div([
     html.Div([
-        html.H1("🎬 IMDb Storytelling Dashboard", className="text-center mt-3 mb-4"),
-        html.P("Explore tendências, notas e popularidade dos filmes ao longo dos anos.", className="text-center")
+        html.H1("🎬 IMDb Storytelling Dashboard", className="text-center mt-3 mb-2 fw-bold"),
+        html.P("Explore tendências, notas e popularidade dos filmes ao longo dos anos.", className="text-center mb-4"),
+        html.Div([
+            html.Button("🌞/🌙 Modo Claro/Escuro", id="theme-toggle", n_clicks=0, className="btn btn-outline-dark")
+        ], className="text-center mb-4")
     ], className="container"),
 
     html.Div([
@@ -42,66 +43,58 @@ app.layout = html.Div([
                 id='year-slider'
             )
         ], className="col-md-8")
-    ], className="row container mb-5"),
+    ], className="row container mb-4"),
 
-    html.Div([
-        dcc.Graph(id='rating-distribution', className="col-md-6"),
-        dcc.Graph(id='meta-over-time', className="col-md-6")
-    ], className="row container"),
+    html.Div(id='summary-container', className="text-center mb-4 fw-semibold"),
 
-    html.Div([
-        dcc.Graph(id='top-movies', className="col-md-12 mt-4")
-    ], className="row container mb-5")
+    dcc.Loading([
+        html.Div([
+            dcc.Graph(id='rating-distribution', className="col-md-6"),
+            dcc.Graph(id='meta-over-time', className="col-md-6")
+        ], className="row container"),
+
+        html.Div([
+            dcc.Graph(id='top-movies', className="col-md-12 mt-4"),
+            dcc.Graph(id='movies-per-year', className="col-md-12 mt-4")
+        ], className="row container mb-5")
+    ])
 ])
 
-# Callbacks (interatividade) 
+# --- Callbacks ---
 @app.callback(
     [Output('rating-distribution', 'figure'),
      Output('meta-over-time', 'figure'),
-     Output('top-movies', 'figure')],
+     Output('top-movies', 'figure'),
+     Output('movies-per-year', 'figure'),
+     Output('summary-container', 'children')],
     [Input('genre-dropdown', 'value'),
-     Input('year-slider', 'value')]
+     Input('year-slider', 'value'),
+     Input('theme-toggle', 'n_clicks')]
 )
-def update_charts(selected_genre, selected_years):
+def update_charts(selected_genre, selected_years, n_clicks):
     start, end = selected_years
-    filtered_df = df[
-        (df['Genre'] == selected_genre) &
-        (df['Year'].between(start, end))
-    ]
+    theme = "plotly_dark" if n_clicks % 2 else "plotly_white"
+    filtered_df = df[(df['Genre'] == selected_genre) & (df['Year'].between(start, end))]
 
-    # Distribuição das notas
-    fig1 = px.histogram(
-        filtered_df,
-        x='IMDb Rating',
-        nbins=20,
-        title=f"Distribuição das notas ({selected_genre})",
-        color_discrete_sequence=['#F4C430']
-    )
+    avg_rating = filtered_df['IMDb Rating'].mean()
+    avg_meta = filtered_df['MetaScore'].mean()
 
-    # Média de MetaScore por ano
-    yearly = filtered_df.groupby('Year')['MetaScore'].mean().reset_index()
-    fig2 = px.line(
-        yearly,
-        x='Year',
-        y='MetaScore',
-        title=f"Média de MetaScore ao longo dos anos ({selected_genre})",
-        markers=True,
-        color_discrete_sequence=['#1F77B4']
-    )
+    summary = f"Média IMDb Rating: {avg_rating:.2f} | Média MetaScore: {avg_meta:.2f}"
 
-    # Top 10 filmes mais bem avaliados
+    fig1 = px.histogram(filtered_df, x='IMDb Rating', nbins=20,
+                        title=f"Distribuição das notas ({selected_genre})", template=theme)
+    fig2 = px.line(filtered_df.groupby('Year')['MetaScore'].mean().reset_index(),
+                   x='Year', y='MetaScore', title=f"Média de MetaScore ao longo dos anos ({selected_genre})",
+                   markers=True, template=theme)
     top = filtered_df.nlargest(10, 'IMDb Rating')
-    fig3 = px.bar(
-        top,
-        x='Title',
-        y='IMDb Rating',
-        title=f"Top 10 filmes ({selected_genre})",
-        color='IMDb Rating',
-        color_continuous_scale='Blues'
-    )
+    fig3 = px.bar(top, x='Title', y='IMDb Rating', title=f"Top 10 filmes ({selected_genre})",
+                  color='IMDb Rating', color_continuous_scale='Blues', template=theme)
     fig3.update_layout(xaxis={'categoryorder': 'total ascending'})
 
-    return fig1, fig2, fig3
+    per_year = filtered_df.groupby('Year').size().reset_index(name='Count')
+    fig4 = px.area(per_year, x='Year', y='Count', title=f"Quantidade de filmes lançados ({selected_genre})", template=theme)
+
+    return fig1, fig2, fig3, fig4, summary
 
 
 # --- Executa o servidor ---
